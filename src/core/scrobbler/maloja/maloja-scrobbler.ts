@@ -89,7 +89,7 @@ export default class MalojaScrobbler extends BaseScrobbler<'Maloja'> {
 
 	/** @override */
 	public async scrobble(song: BaseSong): Promise<ServiceCallResult> {
-		const songData = this.makeTrackMetadata(song);
+		const songData = await this.makeTrackMetadata(song);
 
 		return this.sendRequest(songData, this.userToken);
 	}
@@ -128,11 +128,23 @@ export default class MalojaScrobbler extends BaseScrobbler<'Maloja'> {
 		return ServiceCallResult.RESULT_OK;
 	}
 
-	private makeTrackMetadata(song: BaseSong) {
+	private async makeTrackMetadata(song: BaseSong) {
+		const image = await fetch(song.getTrackArt() as string);
+		const blob = await image.blob();
+		const promise: Promise<string> = new Promise<string>(
+			(resolve, reject) => {
+				const reader = new FileReader();
+				reader.readAsDataURL(blob);
+				reader.onload = () => resolve(<string>reader.result);
+				reader.onerror = (err) => reject(err);
+			},
+		);
+
 		const trackMeta: MalojaTrackMetadata = {
 			artist: song.getArtist() ?? '',
 			title: song.getTrack() ?? '',
 			time: song.metadata.startTimestamp,
+			image: (await promise) ?? '',
 		};
 
 		const album = song.getAlbum();
